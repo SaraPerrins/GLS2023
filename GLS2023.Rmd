@@ -6,12 +6,177 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-#Read data from Github:
-library (readr)
 
-urlfile="https://raw.githubusercontent.com/lrjoshi/webpage/master/public/post/c159s.csv"
+library(dplyr)
+df <-  read.csv("~/Downloads/Grantee Activities Cohort 13.csv", header = TRUE) 
 
-mydata<-read_csv(url(urlfile))
+#colnames(df)
+library(tidyverse)
+require(janitor)
 ```
+
+```{r Clean/mutate}
+df<-clean_names(df)
+df<- subset(df,df$qc_reviewer!= "" & df$cohort == 13) %>%
+  mutate(across(9:170, ~as.numeric(replace(., . == '', 0)))) 
+
+df<- replace(df, is.na(df),0)
+
+df$Any_Gatekeeper <- rowSums(df[,c(45:58)])
+df$Any_Gatekeeper[df$Any_Gatekeeper >0] <- 1
+df$Any_Gatekeeper[df$Any_Gatekeeper ==0] <- 0
+
+df$Any_OtherTraining <- rowSums(df[,c(59:85)])
+df$Any_OtherTraining[df$Any_OtherTraining > 0] <- 1
+df$Any_OtherTraining[df$Any_OtherTraining == 0] <- 0
+table(df$Any_OtherTraining)
+
+df$Any_OutreachAwareness <-rowSums(df[,c(20:33)])
+df$Any_OutreachAwareness[df$Any_OutreachAwareness > 0] <- 1
+df$Any_OutreachAwareness[df$Any_OutreachAwareness == 0] <- 0
+table(df$Any_OutreachAwareness)
+
+df$LifeSkills <- rowSums(df[,c(133,135)])
+df$LifeSkills[df$LifeSkills > 0] <-1
+df$LifeSkills[df$LifeSkills == 0] <-0
+
+df$FollowUp <- rowSums(df[,c(156:160)])
+df$FollowUp[df$FollowUp > 0] <- 1
+df$FollowUp[df$FollowUp == 0] <- 0
+table(df$FollowUp)
+
+
+write.csv(df,"Cohort13.csv")
+```
+
+
+
+```{r Table_}
+Table <- df %>% 
+  group_by(grantee, state_tribal_1_state_2_tribal) %>% 
+  summarise(Any_Gatekeeper = any(Any_Gatekeeper > 0), 
+            Any_OtherTraining = any(Any_OtherTraining >0), 
+            Any_OutreachAwareness = any(Any_OutreachAwareness > 0),
+            Any_Screening = any(did_screening_take_place_1_yes_0_no > 0),
+            Any_SchoolAdult = any(school_based_adult_training > 0),
+            Any_SchoolPeer = any(school_based_peer_training >0),
+            Any_CommunityAdult = any(community_based_adult_training >0),
+            Any_CommunityPeer = any(community_based_peer_training > 0),
+            Any_LifeSkills = any(LifeSkills > 0),
+            Any_FollowUp = any(FollowUp > 0),
+            Any_CulturalActivities = any(cultural_activities_e_g_traditional_arts_and_crafts > 0),
+            Any_HotlinesHelplines = any(hotlines_helplines > 0),
+            Any_TextlinesChats = any(textlines_chatlines>0),
+            Any_CaseManagement = any(case_management_services>0),
+            Any_TraditionalHealingPractices = any(traditional_healing_practices >0),
+            Any_Postvention = any(postvention_services>0),
+            Any_MentalHealthServices = any(mental_health_related_services >0),
+            Any_TransitionAgedYouth = any(transition_aged_youth_i_e_ages_18_24 >0),
+            Any_LGBTQ = any(lgbtq > 0)
+            )
+
+
+# Table2 <- Table %>% 
+#   mutate(across(everything(), ~replace (., . == TRUE, 1))) %>% 
+#   group_by(as.factor(state_tribal_1_state_2_tribal)) %>% 
+#   mutate(PercentGatekeeper = prop.table(Any_Gatekeeper)*100) 
+
+Table_AnnualReport <- Table %>% 
+   # mutate(across(everything(), ~replace (., . == TRUE, 1))) %>%
+  group_by(state_tribal_1_state_2_tribal) %>%
+  summarise(NumberGrantees = n(), 
+            Gatekeeper = sum(Any_Gatekeeper)/n()*100,
+            OtherTraining=sum(Any_OtherTraining)/n()*100,
+            OutreachAwareness = sum(Any_OutreachAwareness)/n()*100,
+            Screening = sum(Any_Screening)/n()*100,
+            SchoolAdult = sum(Any_SchoolAdult)/n()*100,
+            SchoolPeer = sum(Any_SchoolPeer)/n()*100,
+            CommunityAdult = sum(Any_CommunityAdult)/n()*100,
+            CommunityPeer= sum(Any_CommunityPeer)/n()*100,
+            LifeSkills = sum(Any_LifeSkills)/n()*100,
+            FollowUp = sum(Any_FollowUp)/n()*100,
+            CulturalActivities = sum(Any_CulturalActivities)/n()*100,
+            HotlinesHelplines = sum(Any_HotlinesHelplines)/n()*100,
+            TextlinesChat = sum(Any_TextlinesChats)/n()*100,
+            CaseManagement = sum(Any_CaseManagement)/n()*100,
+            TradHealingPractices = sum (Any_TraditionalHealingPractices)/n()*100,
+            Postvention = sum(Any_Postvention)/n()*100,
+            MentalHealthServices = sum(Any_MentalHealthServices)/n()*100,
+            TransitionAgedYouth = sum(Any_TransitionAgedYouth)/n()*100,
+            LGBTQ = sum(Any_LGBTQ)/n()*100,
+            .groups = 'drop')
+write.csv(Table_AnnualReport, "Cohort13_AnnualReportTable.csv")
+
+require(dplyr)
+Table_Summaries <-  Table %>% 
+  mutate(across(everything(), ~replace (., . == TRUE, 1)))  %>%
+  dplyr::group_by(state_tribal_1_state_2_tribal) %>%
+  # summarise(NumberGrantees = n()) %>%
+  dplyr::mutate(across(c(Any_Gatekeeper:Any_LGBTQ),~ sum(.x)/n()*100), .groups = "keep") 
+
+  ungroup
+
+```
+
+
+```{r Plotting}
+require(ggplot2)
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00")
+Label_YesNo <- c("Yes", "No")
+
+test.plot <- ggplot(data = Table) + 
+  geom_bar(aes(y = Any_Gatekeeper, fill = factor(state_tribal_1_state_2_tribal)), position = position_dodge(0.8)) +
+  ggtitle("Gatekeeper Training by State/Tribal Grantees")+
+  xlab("Number of grantees") +
+  ylab("Any Gatekeeper Training")+
+  scale_y_discrete(labels = c("TRUE" = "Yes", "FALSE"= "No"))+
+  scale_fill_manual(values=cbPalette, name = "", labels = c("State", "Tribal"))+
+    theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), text = element_text(family = "DM Sans"),
+    legend.text = element_text(size = 12)
+  )
+  
+
+## function to repeat plotting across multiple variables
+
+require(glue)
+
+plot_loop_individual2 <- function (data = Table_AnnualReport, x=x, y = y) {{
+  IndividualPlots2 <- ggplot(data = Table_AnnualReport, aes(y = .data[[y]], x = .data[[x]], fill = state_tribal_1_state_2_tribal)) + 
+                               geom_bar(stat = "identity",position = "dodge", width = 0.5) + 
+  ggtitle(glue("{y}"))+
+  ylab("Percent")+
+  scale_fill_manual(values=cbPalette, name = "", labels = c("State", "Tribal"))+
+    theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(), 
+    text = element_text(family = "DM Sans"),
+    legend.text = element_text(size = 12), 
+       axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()
+
+  )
+  
+
+  png(paste0({y},"_individual.png"))
+  # print(IndividualPlots)
+  dev.off()
+  print(IndividualPlots2)
+  
+}}
+
+plotlist2 <-colnames(Table_AnnualReport)[-1] %>%
+  map (~plot_loop_individual2(Table_AnnualReport, colnames(Table_AnnualReport)[1],.x))
+
+plotlist2
+
+
+## 
+  
+```
+
+
 
 
