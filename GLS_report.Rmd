@@ -46,12 +46,24 @@ df$FollowUp[df$FollowUp == 0] <- 0
 table(df$FollowUp)
 
 
-write.csv(df,"Cohort13.csv")
+# write.csv(df,"Cohort13.csv")
 ```
 
 
 
 ```{r Table_}
+
+# Multiple.percents <- function(data, numeric_cols = NULL, ...) {
+#   Table%>%   
+#       # mutate(across(everything(), ~replace (., . == TRUE, 1)))%>%
+#     group_by(...) %>%
+#     summarise(across({{numeric_cols}}, list(
+#       perc = sum(.x)/n()*100)
+#     ), .names = "{col}_{fn}")
+# }
+# 
+#   Multiple.percents(Table, numeric_cols = c(3:20),state_tribal_1_state_2_tribal)
+
 Table <- df %>% 
   group_by(grantee, state_tribal_1_state_2_tribal) %>% 
   summarise(Any_Gatekeeper = any(Any_Gatekeeper > 0), 
@@ -73,13 +85,10 @@ Table <- df %>%
             Any_MentalHealthServices = any(mental_health_related_services >0),
             Any_TransitionAgedYouth = any(transition_aged_youth_i_e_ages_18_24 >0),
             Any_LGBTQ = any(lgbtq > 0)
-            )
+            ) %>% 
+  mutate(across(everything(), ~replace (., . == TRUE, 1)))
 
 
-# Table2 <- Table %>% 
-#   mutate(across(everything(), ~replace (., . == TRUE, 1))) %>% 
-#   group_by(as.factor(state_tribal_1_state_2_tribal)) %>% 
-#   mutate(PercentGatekeeper = prop.table(Any_Gatekeeper)*100) 
 
 Table_AnnualReport <- Table %>% 
    # mutate(across(everything(), ~replace (., . == TRUE, 1))) %>%
@@ -107,14 +116,6 @@ Table_AnnualReport <- Table %>%
             .groups = 'drop')
 write.csv(Table_AnnualReport, "Cohort13_AnnualReportTable.csv")
 
-require(dplyr)
-Table_Summaries <-  Table %>% 
-  mutate(across(everything(), ~replace (., . == TRUE, 1)))  %>%
-  dplyr::group_by(state_tribal_1_state_2_tribal) %>%
-  # summarise(NumberGrantees = n()) %>%
-  dplyr::mutate(across(c(Any_Gatekeeper:Any_LGBTQ),~ sum(.x)/n()*100), .groups = "keep") 
-
-  ungroup
 
 ```
 
@@ -142,8 +143,8 @@ test.plot <- ggplot(data = Table) +
 
 require(glue)
 
-plot_loop_individual2 <- function (data = Table_AnnualReport, x=x, y = y) {{
-  IndividualPlots2 <- ggplot(data = Table_AnnualReport, aes(y = .data[[y]], x = .data[[x]], fill = state_tribal_1_state_2_tribal)) + 
+Plot.function <- function (data = Table_AnnualReport, x=x, y = y) {{
+  allplots <- ggplot(data = Table_AnnualReport, aes(y = .data[[y]], x = .data[[x]], fill = state_tribal_1_state_2_tribal)) + 
                                geom_bar(stat = "identity",position = "dodge", width = 0.5) + 
   ggtitle(glue("{y}"))+
   ylab("Percent")+
@@ -159,22 +160,20 @@ plot_loop_individual2 <- function (data = Table_AnnualReport, x=x, y = y) {{
 
   )
   
-
-  png(paste0({y},"_individual.png"))
-  # print(IndividualPlots)
+png({y})
+ 
+ 
   dev.off()
-  print(IndividualPlots2)
+  print(allplots)
   
 }}
 
-plotlist2 <-colnames(Table_AnnualReport)[-1] %>%
-  map (~plot_loop_individual2(Table_AnnualReport, colnames(Table_AnnualReport)[1],.x))
+plots <-colnames(Table_AnnualReport)[-1] %>%
+  map (~Plot.function(Table_AnnualReport, colnames(Table_AnnualReport)[1],.x))
 
-plotlist2
+plots
 
 
-## 
-  
 ```
 
 
